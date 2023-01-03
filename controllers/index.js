@@ -14,7 +14,7 @@ const {
 
 module.exports.getAllUsers = (req, res) => {
   User.findAll().then((users) => {
-    res.json({ auth: req.auth, users });
+    res.json({ auth: req.auth || null, users });
   });
 };
 module.exports.signUp = (req, res) => {
@@ -87,4 +87,61 @@ module.exports.logIn = (req, res) => {
     });
 };
 
-module.exports.changePassword = (req, res) => {};
+module.exports.changePassword = (req, res) => {
+  const { password } = req.body;
+  User.findOne({ where: { id: req.auth.user.id || null } })
+    .then((user) => {
+      const { salt, hash } = hashPassword(password);
+      User.update(
+        { pwd: hash, salt },
+        {
+          where: {
+            id: req.auth.user.id || null,
+          },
+        }
+      )
+        .then((updatedUser) => {
+          res.json({ updatedUser, msg: "SUCCESS", ctx: "KEEP YOUR TOKEN" });
+        })
+        .catch((err) => {
+          res.status(500).json({ msg: "ERROR UPDATING creds--in DB" });
+        });
+    })
+    .catch((err) => {
+      return res.status(400).json({
+        err: true,
+        msg: "Cannot change password for a non-existent user",
+      });
+    });
+};
+
+module.exports.checkIfAuthenticated = (req, res, next) => {
+  const { authorization } = req.headers;
+  if (!authorization) {
+    req.auth = {
+      user: null,
+      isAuthenticated: false,
+    };
+    // return next();
+    return res.json({ msg: "NOT AUTHORIZED TO DO SO" });
+  }
+  const token = authorization.split(" ")[1];
+
+  const tokenIsValid = validateToken(token);
+  if (!tokenIsValid) {
+    req.auth = {
+      user: null,
+      isAuthenticated: false,
+    };
+    return res.json({ msg: "NOT AUTHORIZED TO DO SO" });
+  }
+
+  req.auth = {
+    user: {
+      id: tokenIsValid.sub,
+      username: tokenIsValid.username,
+    },
+    isAuthenticated: true,
+  };
+  return next();
+};
