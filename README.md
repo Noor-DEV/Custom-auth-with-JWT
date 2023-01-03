@@ -5,4 +5,4 @@
 ### Postgres with Sequelize
 ### Assymetric Cryptography to secure the token
 
-##Enables on to create accounts, login and change passwords
+## Enables on to create accounts, login and change passwords
